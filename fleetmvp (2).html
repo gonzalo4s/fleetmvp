@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FleetMVP - Sistema de Flota</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<style>
+
+:root{
+  --bg:#0d0f12;--bg2:#141720;--bg3:#1c2030;--bg4:#242840;
+  --border:#2a2f45;--border2:#353b58;
+  --text:#e8eaf0;--text2:#8890aa;--text3:#555e7a;
+  --accent:#4f9ef8;--accent2:#2563d4;
+  --green:#22c97a;--green-bg:#0d2b1e;--green-border:#1a4a32;
+  --amber:#f5a623;--amber-bg:#2b1f0a;--amber-border:#4a3510;
+  --red:#f25757;--red-bg:#2b0f0f;--red-border:#4a1a1a;
+  --blue-bg:#0d1a2b;--blue-border:#1a3050;
+  --radius:8px;--radius-lg:12px;
+  --font:'IBM Plex Sans',sans-serif;--mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh}
+.app{display:flex;min-height:100vh}
+.sidebar{width:220px;min-height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .25s ease}
+.sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid var(--border)}
+.logo-mark{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--accent);letter-spacing:-.5px}
+.logo-sub{font-size:11px;color:var(--text3);margin-top:2px;letter-spacing:.5px;text-transform:uppercase}
+.nav{flex:1;padding:12px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--text2);cursor:pointer;font-size:13px;border-left:2px solid transparent;transition:all .15s;user-select:none}
+.nav-item:hover{color:var(--text);background:var(--bg3)}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(79,158,248,.07);font-weight:500}
+.nav-icon{width:16px;text-align:center;font-size:15px}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-family:var(--mono);padding:1px 6px;border-radius:10px;min-width:18px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);font-family:var(--mono)}
+.main{margin-left:220px;flex:1;min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:12px}
+.topbar-title{font-size:15px;font-weight:500}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.clock{font-family:var(--mono);font-size:12px;color:var(--text3)}
+.content{padding:24px 28px;flex:1}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:6px}
+.card-title{font-size:13px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.8px}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.metric-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px}
+.metric-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.metric-val{font-size:26px;font-weight:300;font-family:var(--mono)}
+.metric-val.red{color:var(--red)}.metric-val.green{color:var(--green)}.metric-val.amber{color:var(--amber)}
+.badge{display:inline-block;font-size:11px;font-family:var(--mono);padding:2px 8px;border-radius:4px;font-weight:400}
+.badge-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.badge-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.badge-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.badge-info{background:var(--blue-bg);color:var(--accent);border:1px solid var(--blue-border)}
+.badge-gray{background:var(--bg4);color:var(--text2);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+.card .table-scroll{overflow-x:auto}
+thead th{text-align:left;padding:8px 12px;color:var(--text3);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border)}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:rgba(255,255,255,.02)}
+table input{padding:5px 8px;font-size:12px}
+.mono{font-family:var(--mono)}
+.form-row{display:grid;gap:12px;margin-bottom:12px}
+.form-row.cols-2{grid-template-columns:1fr 1fr}
+.form-row.cols-3{grid-template-columns:1fr 1fr 1fr}
+.form-row.cols-4{grid-template-columns:1fr 1fr 1fr 1fr}
+.field label{display:block;font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.6px}
+input,select,textarea{width:100%;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--font);font-size:13px;transition:border-color .15s;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent2)}
+input[readonly]{color:var(--text3);cursor:default}
+select option{background:var(--bg3)}
+.btn{padding:8px 18px;border-radius:var(--radius);font-size:13px;font-family:var(--font);font-weight:500;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);transition:all .15s}
+.btn:hover{background:var(--bg4);color:var(--text)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#3a8de8;border-color:#3a8de8}
+.btn-danger{border-color:var(--red-border);color:var(--red)}
+.btn-danger:hover{background:var(--red-bg)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.alert-item{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:var(--radius);margin-bottom:8px;border:1px solid}
+.alert-item.warn{background:var(--amber-bg);border-color:var(--amber-border)}
+.alert-item.danger{background:var(--red-bg);border-color:var(--red-border)}
+.alert-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.alert-dot.warn{background:var(--amber)}.alert-dot.danger{background:var(--red)}
+.alert-title{font-size:13px;font-weight:500}
+.alert-sub{font-size:12px;color:var(--text2);margin-top:3px}
+.progress{height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;border-radius:2px;transition:width .4s}
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.dash-grid .card{margin-bottom:0}
+.payload-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:var(--mono);font-size:12px;color:var(--green);min-height:90px;white-space:pre;line-height:1.7}
+.log-entry{padding:5px 0;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px;color:var(--text2)}
+.log-entry:last-child{border-bottom:none}
+.log-ts{color:var(--text3);margin-right:8px}.log-km{color:var(--green)}
+.empty{text-align:center;padding:32px;color:var(--text3);font-size:13px}
+.hamburger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius);background:transparent;flex-shrink:0}
+.hamburger span{display:block;height:2px;background:var(--text2);border-radius:2px;transition:all .2s}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:90}
+.sidebar-overlay.visible{display:block}
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);z-index:200;padding:6px 0 max(6px,env(safe-area-inset-bottom))}
+.bottom-nav-inner{display:flex;justify-content:space-around;align-items:center}
+.bottom-nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 10px;cursor:pointer;color:var(--text3);font-size:10px;font-weight:500;position:relative;min-width:52px;transition:color .15s;user-select:none}
+.bottom-nav-item .bn-icon{font-size:18px;line-height:1}
+.bottom-nav-item.active{color:var(--accent)}
+.bottom-nav-item .bn-badge{position:absolute;top:2px;right:6px;background:var(--red);color:#fff;font-size:9px;font-family:var(--mono);padding:0 4px;border-radius:8px;min-width:14px;text-align:center;line-height:14px;height:14px}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);width:260px}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .hamburger{display:flex}
+  .topbar{padding:12px 16px}
+  .topbar-title{font-size:14px;flex:1}
+  .clock{display:none}
+  .content{padding:16px 14px 80px}
+  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  #kpi-grid{grid-template-columns:1fr !important}
+  .dash-grid{grid-template-columns:1fr}
+  .form-row.cols-2,.form-row.cols-3,.form-row.cols-4{grid-template-columns:1fr}
+  .card{padding:14px 12px}
+  .card-header{flex-wrap:wrap;gap:6px}
+  [style*="overflow-x:auto"] table{min-width:480px}
+  .bottom-nav{display:block}
+}
+@media(max-width:480px){
+  .metric-val{font-size:20px}
+  .metric-grid{gap:6px}
+  .card{border-radius:10px}
+}
+
+  /* === VISUAL UPGRADE: Dark fleet theme === */
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important; }
+  :root {
+    --bg:#10131c !important; --bg2:#181b24 !important; --bg3:#1c2030 !important;
+    --bg4:#272a33 !important; --border:#2a2f45 !important; --border2:#353b58 !important;
+    --accent:#a3c9ff !important; --accent2:#4f9ef8 !important;
+    --green:#46e08e !important; --green-bg:#0d2b1e !important; --green-border:#1a4a32 !important;
+    --amber:#ffba3f !important; --amber-bg:#2b1f0a !important; --amber-border:#4a3510 !important;
+    --red:#ffb4ab !important; --red-bg:#2b0f0f !important; --red-border:#4a1a1a !important;
+  }
+  /* Glass cards */
+  .card {
+    background: rgba(36,40,50,.65) !important;
+    border: 1px solid rgba(163,201,255,.07) !important;
+    border-radius: 12px !important;
+    position: relative; overflow: hidden;
+  }
+  .card::after {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(163,201,255,.01) 2px,rgba(163,201,255,.01) 4px);
+    z-index: 0;
+  }
+  /* Metric cards */
+  .metric-card {
+    background: rgba(28,32,48,.8) !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(163,201,255,.08) !important;
+  }
+  /* Sidebar */
+  .sidebar { background: #181b24 !important; border-right: 1px solid rgba(255,255,255,.06) !important; }
+  .sidebar-logo { border-bottom: 1px solid rgba(255,255,255,.06) !important; }
+  .logo-mark { color: #a3c9ff !important; letter-spacing: -.5px; }
+  .nav-item { border-radius: 0 7px 7px 0; margin-right: 8px; }
+  .nav-item.active { background: rgba(163,201,255,.08) !important; color: #a3c9ff !important; border-left-color: #a3c9ff !important; }
+  .sidebar-footer { border-top: 1px solid rgba(255,255,255,.06) !important; }
+  /* Topbar */
+  .topbar { background: rgba(16,19,28,.92) !important; border-bottom: 1px solid rgba(255,255,255,.05) !important; backdrop-filter: blur(16px); }
+  /* Inputs */
+  input, select, textarea {
+    background: #1c2030 !important; border: 1px solid #2a2f45 !important;
+    border-radius: 8px !important; color: #e0e2ef !important;
+  }
+  /* Tables */
+  thead th { background: rgba(11,14,23,.4); }
+  /* Buttons */
+  .btn-primary { background: #a3c9ff !important; color: #001c39 !important; border-color: #a3c9ff !important; border-radius: 8px !important; }
+  .btn-primary:hover { background: #4f9ef8 !important; border-color: #4f9ef8 !important; }
+  .btn { border-radius: 7px !important; }
+  /* KPI grid inside dashboard */
+  #kpi-grid > div {
+    background: rgba(28,32,48,.8) !important;
+    border: 1px solid rgba(163,201,255,.08) !important;
+    border-radius: 10px !important;
+  }
+  /* Bottom nav */
+  .bottom-nav { background: #181b24 !important; border-top: 1px solid rgba(255,255,255,.06) !important; }
+  .bottom-nav-item.active { color: #a3c9ff !important; }
+  /* Ambient glow */
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:-1; opacity:.12;
+    background: radial-gradient(circle at 80% 20%,#4f9ef8 0%,transparent 40%),
+                radial-gradient(circle at 20% 80%,#10131c 0%,transparent 50%);
+  }
+  /* Scrollbar */
+  ::-webkit-scrollbar{width:4px;height:4px}
+  ::-webkit-scrollbar-track{background:#181b24}
+  ::-webkit-scrollbar-thumb{background:#353b58;border-radius:2px}
+
+
+  /* === KPI ROW (dashboard) === */
+  @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.6)}}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+  .kpi-card{background:rgba(28,32,48,.85);border:1px solid rgba(163,201,255,.08);border-radius:12px;padding:18px;position:relative;overflow:hidden}
+  .kpi-card::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(163,201,255,.01) 2px,rgba(163,201,255,.01) 4px)}
+  .kpi-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:6px}
+  .kpi-label{font-size:9px;font-weight:600;color:#8b919d;text-transform:uppercase;letter-spacing:1.5px}
+  .kpi-badge{font-size:9px;padding:2px 7px;border-radius:4px;font-weight:600;font-family:monospace;background:rgba(255,180,171,.12);color:#ffb4ab;border:1px solid rgba(255,180,171,.25)}
+  .kpi-badge.ok{background:rgba(70,224,142,.12);color:#46e08e;border-color:rgba(70,224,142,.25)}
+  .kpi-badge.warn{background:rgba(255,186,63,.12);color:#ffba3f;border-color:rgba(255,186,63,.25)}
+
+  /* Gauge */
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center}
+  .gauge-svg{width:100%;max-width:200px;overflow:visible}
+  .gauge-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%;margin-top:10px}
+  .gauge-stat{background:#272a33;border-radius:7px;padding:6px 4px;text-align:center}
+  .gs-lbl{font-size:8px;color:#555e7a;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px}
+  .gs-val{font-size:14px;font-weight:700;display:block}
+
+  /* Bar chart P/C */
+  .bars-wrap{display:flex;align-items:flex-end;justify-content:center;gap:18px;padding:0 8px;margin-bottom:10px}
+  .bar-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+  .bar-pct{font-size:9px;color:#8b919d;font-family:monospace}
+  .bar-track{width:100%;border-radius:5px 5px 0 0;background:#272a33;overflow:hidden;display:flex;align-items:flex-end;height:70px}
+  .bar-fill{width:100%;border-radius:4px 4px 0 0;transition:height 1s cubic-bezier(.4,0,.2,1)}
+  .bar-num{font-size:22px;font-weight:700}
+  .bar-type{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+  .bar-cost{font-size:9px;color:#555e7a;font-family:monospace;margin-top:1px}
+  .bars-sep{display:flex;flex-direction:column;align-items:center;gap:4px;padding-bottom:30px}
+  .bars-sep-line{width:1px;height:42px;background:rgba(255,255,255,.07)}
+  .pc-status-row{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:7px;background:#272a33;border:1px solid rgba(255,255,255,.05)}
+  .pc-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:#555e7a}
+  .pc-status{font-size:9px;font-family:monospace;text-transform:uppercase;letter-spacing:.4px;color:#555e7a}
+
+  /* MTBF */
+  .mtbf-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#32343e}
+  .mtbf-val{font-size:24px;font-weight:300;font-family:monospace;color:#555e7a;margin-bottom:10px}
+  .mtbf-row{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+  .mtbf-vid{font-size:9px;font-family:monospace;color:#555e7a;width:50px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mtbf-track{flex:1;height:5px;background:#272a33;border-radius:3px;overflow:hidden}
+  .mtbf-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+  .mtbf-km{font-size:9px;font-family:monospace;width:70px;text-align:right;flex-shrink:0}
+  .mtbf-foot{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;border-top:1px solid rgba(255,255,255,.05);padding-top:10px;margin-top:8px;text-align:center}
+  .mf-lbl{font-size:8px;color:#555e7a;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px}
+  .mf-val{font-size:13px;font-weight:600;display:block;font-family:monospace;color:#555e7a}
+
+  /* Vida util grid */
+  .vida-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;padding:16px}
+  .vida-item{display:flex;flex-direction:column;gap:7px}
+  .vida-hdr{display:flex;justify-content:space-between;align-items:flex-end}
+  .vida-name{font-size:10px;font-weight:700;text-transform:uppercase;color:#e0e2ef}
+  .vida-km{font-size:9px;font-family:monospace;color:#555e7a}
+  .vida-bar{height:5px;background:#272a33;border-radius:3px;overflow:hidden;position:relative}
+  .vida-theo{position:absolute;inset:0;background:rgba(163,201,255,.2);width:100%;border-radius:3px}
+  .vida-real{position:absolute;top:0;left:0;height:100%;border-radius:3px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+  .vida-sub{font-size:9px;font-family:monospace;color:#555e7a;text-align:right}
+
+  /* Alert items - override with new style */
+  .alert-item{border-radius:8px!important;padding:9px 11px!important}
+  .alert-item.danger{background:rgba(255,180,171,.07)!important;border-color:rgba(255,180,171,.2)!important}
+  .alert-item.warn{background:rgba(255,186,63,.07)!important;border-color:rgba(255,186,63,.2)!important}
+
+  /* Metric cards - enhanced */
+  .metric-card{position:relative;overflow:hidden}
+  .metric-card::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(163,201,255,.01) 2px,rgba(163,201,255,.01) 4px)}
+
+  /* Responsive KPIs */
+  @media(max-width:768px){
+    .kpi-row{grid-template-columns:1fr}
+    .vida-grid{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:480px){
+    .vida-grid{grid-template-columns:1fr}
+  }
+
+</style>
+</head>
+<body>
+<div class="app">
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">FleetMVP</div>
+    <div class="logo-sub">Mantenimiento por km</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="showTab('dashboard',this,'bn-dashboard')"><span class="nav-icon">&#9672;</span> Dashboard<span class="nav-badge" id="nav-alert-count">0</span></div>
+    <div class="nav-item" onclick="showTab('vehiculos',this,'bn-vehiculos')"><span class="nav-icon">&#9723;</span> Vehiculos</div>
+    <div class="nav-item" onclick="showTab('ot',this,'bn-ot')"><span class="nav-icon">&#9703;</span> Ordenes de trabajo</div>
+    <div class="nav-item" onclick="showTab('componentes',this,'bn-componentes')"><span class="nav-icon">&#9672;</span> Componentes</div>
+    <div class="nav-item" onclick="showTab('esp32',this,'bn-esp32')"><span class="nav-icon">&#9655;</span> Sim. ESP32</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse-dot 2s ease-in-out infinite"></span>
+      <span id="con-status" style="color:var(--green);font-size:10px">Conectando...</span>
+    </div>
+    <div style="font-size:9px;color:var(--text4);margin-bottom:8px">Firebase Realtime DB</div>
+    <div id="clock-side" style="margin-bottom:10px">-</div>
+    <button class="btn btn-danger" onclick="clearAllData()" style="width:100%;font-size:11px;padding:6px">(!) Borrar todos los datos</button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="topbar-title" id="page-title">Dashboard</div>
+    <div class="topbar-right">
+      <span id="topbar-alert-dot" style="display:none;width:8px;height:8px;border-radius:50%;background:var(--red)"></span>
+      <div class="clock" id="clock-top">-</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard" class="panel active">
+
+      <!-- Metricas resumen -->
+      <div class="metric-grid" id="metrics"></div>
+
+      <!-- KPI Row: gauge + barras + MTBF -->
+      <div class="kpi-row">
+
+        <!-- DISPONIBILIDAD DE FLOTA -->
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-label">Disponibilidad de Flota</span>
+            <span class="kpi-badge" id="disp-badge">CRITICAL</span>
+          </div>
+          <div class="gauge-wrap">
+            <svg viewBox="0 0 200 115" class="gauge-svg">
+              <!-- Track zones -->
+              <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="#272a33" stroke-width="13" stroke-linecap="round"/>
+              <path d="M20 100 A80 80 0 0 1 100 20"  fill="none" stroke="#ffb4ab" stroke-width="13" stroke-linecap="round" opacity="0.2"/>
+              <path d="M100 20 A80 80 0 0 1 164 44"  fill="none" stroke="#ffba3f" stroke-width="13" stroke-linecap="round" opacity="0.2"/>
+              <path d="M164 44 A80 80 0 0 1 180 100" fill="none" stroke="#46e08e" stroke-width="13" stroke-linecap="round" opacity="0.2"/>
+              <!-- Active arc -->
+              <path id="gauge-arc" d="M20 100 A80 80 0 0 1 20.001 100" fill="none" stroke="#ffb4ab" stroke-width="13" stroke-linecap="round" style="transition:d 1.2s cubic-bezier(.4,0,.2,1),stroke .6s"/>
+              <!-- Needle -->
+              <line id="gauge-needle" x1="100" y1="100" x2="20" y2="100" stroke="#e0e2ef" stroke-width="2.5" stroke-linecap="round" style="transform-origin:100px 100px;transform:rotate(0deg);transition:transform 1.2s cubic-bezier(.4,0,.2,1)"/>
+              <circle cx="100" cy="100" r="4.5" fill="#e0e2ef"/>
+              <!-- Labels -->
+              <text x="16"  y="115" fill="#555e7a" font-size="8" font-family="monospace" text-anchor="middle">0%</text>
+              <text x="100" y="13"  fill="#555e7a" font-size="8" font-family="monospace" text-anchor="middle">50%</text>
+              <text x="184" y="115" fill="#555e7a" font-size="8" font-family="monospace" text-anchor="middle">100%</text>
+              <!-- Value -->
+              <text id="gauge-val" x="100" y="88" fill="#ffb4ab" font-size="20" font-family="monospace" font-weight="700" text-anchor="middle">0%</text>
+            </svg>
+            <div class="gauge-stats">
+              <div class="gauge-stat"><span class="gs-lbl">Activos</span><span class="gs-val" id="disp-act" style="color:#46e08e">0</span></div>
+              <div class="gauge-stat"><span class="gs-lbl">En mant.</span><span class="gs-val" id="disp-mnt" style="color:#ffba3f">0</span></div>
+              <div class="gauge-stat"><span class="gs-lbl">Fuera</span><span class="gs-val" id="disp-fua" style="color:#ffb4ab">0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PREVENTIVO vs CORRECTIVO -->
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-label">Preventivo vs Correctivo</span>
+            <span class="kpi-badge" id="pc-badge">-</span>
+          </div>
+          <div class="bars-wrap">
+            <div class="bar-col">
+              <span class="bar-pct" id="prev-pct">0%</span>
+              <div class="bar-track"><div class="bar-fill" id="bar-prev" style="height:0%;background:linear-gradient(to top,rgba(163,201,255,.4),#a3c9ff)"></div></div>
+              <span class="bar-num" id="stat-prev" style="color:#a3c9ff">0</span>
+              <span class="bar-type" style="color:#a3c9ff">Preventivos</span>
+              <span class="bar-cost" id="costo-prev">$0</span>
+            </div>
+            <div class="bars-sep"><div class="bars-sep-line"></div><span style="font-size:12px;color:#555e7a">/</span></div>
+            <div class="bar-col">
+              <span class="bar-pct" id="corr-pct">0%</span>
+              <div class="bar-track"><div class="bar-fill" id="bar-corr" style="height:0%;background:linear-gradient(to top,rgba(255,186,63,.4),#ffba3f)"></div></div>
+              <span class="bar-num" id="stat-corr" style="color:#ffba3f">0</span>
+              <span class="bar-type" style="color:#ffba3f">Correctivos</span>
+              <span class="bar-cost" id="costo-corr">$0</span>
+            </div>
+          </div>
+          <div class="pc-status-row"><span class="pc-dot" id="pc-dot"></span><span class="pc-status" id="pc-status">Sin datos</span></div>
+        </div>
+
+        <!-- MTBF -->
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-label">MTBF - Km entre fallos</span>
+            <span class="mtbf-dot" id="mtbf-dot"></span>
+          </div>
+          <div class="mtbf-val" id="mtbf-val">-- km</div>
+          <div id="mtbf-bars"></div>
+          <div class="mtbf-foot">
+            <div><span class="mf-lbl">Correctivos</span><span class="mf-val" id="mtbf-corr">0</span></div>
+            <div><span class="mf-lbl">Km totales</span><span class="mf-val" id="mtbf-km">--</span></div>
+            <div><span class="mf-lbl">Estado</span><span class="mf-val" id="mtbf-st" style="font-size:9px">--</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Indicadores por vehiculo -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><span class="card-title">Indicadores por vehiculo</span></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Vehiculo</th><th>Disponibilidad</th><th>Prev./Corr.</th><th>Ratio P/C</th><th>MTBF</th><th>Correctivos</th><th>Costo correctivos</th></tr></thead><tbody id="kpi-vehicle-tbody"></tbody></table></div>
+      </div>
+
+      <!-- Alertas + Proximos -->
+      <div class="dash-grid" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Alertas activas</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="width:6px;height:6px;border-radius:50%;background:#46e08e;box-shadow:0 0 5px rgba(70,224,142,.6);animation:pulse-dot 2s ease-in-out infinite;display:inline-block"></span>
+              <span class="badge badge-danger" id="alert-count-badge">0</span>
+            </div>
+          </div>
+          <div id="alerts-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Proximos mantenimientos</span></div>
+          <div id="next-maint"></div>
+        </div>
+      </div>
+
+      <!-- Tabla flota -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><span class="card-title">Estado general de flota</span></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>ID Terminal</th><th>Vehiculo</th><th>Km actual</th><th>Alertas</th><th>Estado</th></tr></thead><tbody id="dash-vehicle-tbody"></tbody></table></div>
+      </div>
+
+      <!-- Vida util -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Vida util promedio por sistema</span>
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:rgba(163,201,255,.4);display:inline-block"></span><span style="font-size:9px;color:#8b919d;text-transform:uppercase;letter-spacing:.5px">Teorico</span></div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#46e08e;box-shadow:0 0 5px rgba(70,224,142,.5);display:inline-block"></span><span style="font-size:9px;color:#8b919d;text-transform:uppercase;letter-spacing:.5px">Real</span></div>
+          </div>
+        </div>
+        <div class="vida-grid" id="vida-grid"></div>
+      </div>
+
+    </div>
+
+    <!-- VEHÍCULOS -->
+    <div id="tab-vehiculos" class="panel">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Registrar vehiculo</span></div>
+        <div class="form-row cols-4">
+          <div class="field"><label>ID vehiculo</label><input id="v-id" placeholder="VH-001"></div>
+          <div class="field"><label>Nombre / Modelo</label><input id="v-name" placeholder="Ford Ranger 2022"></div>
+          <div class="field"><label>Km actual</label><input id="v-km" type="number" placeholder="0" min="0"></div>
+          <div class="field"><label>Estado</label><select id="v-estado"><option>Activo</option><option>En mantenimiento</option><option>Fuera de servicio</option></select></div>
+        </div>
+        <button class="btn btn-primary" onclick="addVehicle()">+ Registrar vehiculo</button>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Flota registrada</span></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Vehiculo</th><th>Km actual</th><th>Estado</th><th>Alertas</th><th></th></tr></thead><tbody id="fleet-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- OTs -->
+    <div id="tab-ot" class="panel">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title" id="ot-form-title">Nueva orden de trabajo</span>
+          <span id="ot-edit-badge" style="display:none;font-size:11px;padding:3px 10px;border-radius:4px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border);font-family:var(--mono)">(editar) Editando OT</span>
+        </div>
+        <div class="form-row cols-4">
+          <div class="field"><label>Vehiculo</label><select id="ot-vehicle" onchange="autoKm()"></select></div>
+          <div class="field"><label>Tipo</label><select id="ot-tipo" onchange="toggleTipo()"><option>Preventivo</option><option>Correctivo</option></select></div>
+          <div class="field" id="field-sistema-prev">
+            <label>Sistema <span style="color:var(--text3);font-weight:400">(vida util configurada)</span></label>
+            <select id="ot-sistema" onchange="calcProximo()"></select>
+          </div>
+          <div class="field" id="field-sistema-corr" style="display:none">
+            <label style="display:flex;justify-content:space-between;align-items:center">
+              <span>Sistema / componente afectado</span>
+              <button type="button" onclick="toggleSistemaMode()" id="btn-usar-lista" style="font-size:10px;padding:2px 8px;border:1px solid var(--blue-border);border-radius:4px;background:transparent;color:var(--accent);cursor:pointer;font-family:var(--font)">Usar lista v</button>
+            </label>
+            <div id="sistema-corr-libre"><input id="ot-sistema-texto" placeholder="Ej: Reten de ciguenal, sensor MAP..."></div>
+            <div id="sistema-corr-lista" style="display:none">
+              <select id="ot-sistema-sel"></select>
+              <div style="font-size:11px;color:var(--amber);margin-top:5px">Vinculado a vida util - afecta promedios</div>
+            </div>
+          </div>
+          <div class="field"><label>Fecha</label><input id="ot-fecha" type="date"></div>
+        </div>
+        <div class="form-row cols-4">
+          <div class="field"><label>Km intervencion</label><input id="ot-km" type="number" placeholder="85000" oninput="calcProximo()"></div>
+          <div class="field" id="field-proximo"><label>Prox. km (auto)</label><input id="ot-proximo" type="number" readonly></div>
+          <div class="field"><label>Costo ($)</label><input id="ot-costo" type="number" placeholder="0" min="0"></div>
+          <div class="field"><label>Tecnico (opcional)</label><input id="ot-tecnico" placeholder="Nombre del tecnico"></div>
+        </div>
+        <div class="form-row" style="margin-bottom:14px">
+          <div class="field"><label>Descripcion</label><textarea id="ot-desc" rows="2" placeholder="Detalle del trabajo realizado..."></textarea></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn btn-primary" id="ot-submit-btn" onclick="submitOT()">+ Registrar OT</button>
+          <button class="btn" id="ot-cancel-btn" onclick="cancelEditOT()" style="display:none">Cancelar edicion</button>
+          <span id="ot-edit-index" style="display:none"></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Historial de ordenes</span><span style="font-size:11px;color:var(--text3)">Clic en una fila para editarla</span></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Fecha</th><th>Vehiculo</th><th>Tipo</th><th>Sistema</th><th>Km OT</th><th>Prox. km</th><th>Costo</th><th>Tecnico</th><th></th></tr></thead><tbody id="ot-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- COMPONENTES -->
+    <div id="tab-componentes" class="panel">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Agregar sistema / componente</span></div>
+        <div class="form-row cols-3">
+          <div class="field"><label>Nombre del sistema</label><input id="c-name" placeholder="Ej: Correa de alternador"></div>
+          <div class="field"><label>Km vida util estimada</label><input id="c-km" type="number" placeholder="30000" min="1000"></div>
+          <div class="field"><label>Umbral de alerta (km antes)</label><input id="c-umbral" type="number" placeholder="500" min="100"></div>
+        </div>
+        <button class="btn btn-primary" onclick="addComponent()">+ Agregar componente</button>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Sistemas configurados</span></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Sistema</th><th>Vida util (km)</th><th>Umbral alerta</th><th>OTs realizadas</th><th>Vida real prom.</th><th></th></tr></thead><tbody id="comp-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ESP32 -->
+    <div id="tab-esp32" class="panel">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Simulador ESP32 + GPS</span></div>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:16px">Simula el payload JSON que enviaria el dispositivo embebido. Los km se actualizan en la flota en tiempo real.</p>
+        <div class="form-row cols-4">
+          <div class="field"><label>Vehiculo</label><select id="esp-vehicle"></select></div>
+          <div class="field"><label>Km acumulado</label><input id="esp-km" type="number" placeholder="85500" min="0"></div>
+          <div class="field"><label>Latitud</label><input id="esp-lat" type="number" placeholder="-32.8894" step="0.0001"></div>
+          <div class="field"><label>Longitud</label><input id="esp-lng" type="number" placeholder="-68.8458" step="0.0001"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:16px">
+          <button class="btn btn-primary" onclick="sendESP32()">&#9655; Enviar lectura</button>
+          <button class="btn" onclick="autoSimulate()">&#8635; Simular +km aleatorio</button>
+        </div>
+        <div class="card-header" style="margin-top:4px"><span class="card-title">Payload JSON</span></div>
+        <div class="payload-box" id="esp-payload">// Esperando envio...
+// El dispositivo enviara un HTTP POST con este body</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Log de recepciones</span></div>
+        <div id="esp-log" style="max-height:240px;overflow-y:auto"><div class="empty">Sin recepciones aun</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Ejemplo codigo Arduino / ESP32</span></div>
+        <pre style="font-family:var(--mono);font-size:12px;color:var(--text2);background:var(--bg);padding:16px;border-radius:8px;overflow-x:auto;line-height:1.7">#include &lt;WiFi.h&gt;
+#include &lt;HTTPClient.h&gt;
+#include &lt;TinyGPS++.h&gt;
+
+const char* serverUrl = "http://tu-servidor/api/km-update";
+TinyGPSPlus gps;
+
+void sendKmUpdate(float lat, float lng, long km) {
+  HTTPClient http;
+  http.begin(serverUrl);
+  http.addHeader("Content-Type", "application/json");
+  String payload = "{\"vehicle_id\":\"VH-001\",";
+  payload += "\"lat\":" + String(lat,6) + ",";
+  payload += "\"lng\":" + String(lng,6) + ",";
+  payload += "\"km_acumulado\":" + String(km) + "}";
+  http.POST(payload);
+  http.end();
+}
+
+void loop() {
+  if (gps.location.isUpdated()) {
+    sendKmUpdate(gps.location.lat(), gps.location.lng(),
+                 gps.distance.meters()/1000);
+  }
+  delay(30000);
+}</pre>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <div class="bottom-nav-item active" id="bn-dashboard" onclick="showTab('dashboard',null,'bn-dashboard')"><span class="bn-icon">&#9672;</span><span>Dashboard</span><span class="bn-badge" id="bn-alert-count" style="display:none">0</span></div>
+    <div class="bottom-nav-item" id="bn-vehiculos" onclick="showTab('vehiculos',null,'bn-vehiculos')"><span class="bn-icon">&#9723;</span><span>Vehiculos</span></div>
+    <div class="bottom-nav-item" id="bn-ot" onclick="showTab('ot',null,'bn-ot')"><span class="bn-icon">&#9703;</span><span>OT</span></div>
+    <div class="bottom-nav-item" id="bn-componentes" onclick="showTab('componentes',null,'bn-componentes')"><span class="bn-icon">&#9672;</span><span>Sistemas</span></div>
+    <div class="bottom-nav-item" id="bn-esp32" onclick="showTab('esp32',null,'bn-esp32')"><span class="bn-icon">&#9655;</span><span>ESP32</span></div>
+  </div>
+</nav>
+
+<script>
+// ==========================================
+// FIREBASE CONFIG & INIT
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCAf5y5orrkau1LOGjDgipzImDE72NqCmA",
+  authDomain: "fleetmvp.firebaseapp.com",
+  databaseURL: "https://fleetmvp-default-rtdb.firebaseio.com",
+  projectId: "fleetmvp",
+  storageBucket: "fleetmvp.firebasestorage.app",
+  messagingSenderId: "4990428203",
+  appId: "1:4990428203:web:215534132bf9cff028766e"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ==========================================
+// STORAGE - Firebase Realtime Database
+// ==========================================
+
+// Indicador de conexion
+function setConStatus(online){
+  const el=document.getElementById('con-status');
+  if(!el)return;
+  if(online){el.textContent='Conectado a la nube';el.style.color='var(--green)';}
+  else{el.textContent='Sin conexion - modo local';el.style.color='var(--amber)';}
+}
+db.ref('.info/connected').on('value',snap=>setConStatus(snap.val()===true));
+
+// Flag que bloquea el listener mientras nosotros estamos escribiendo
+let _saving=false;
+let _saveTimer=null;
+
+function saveData(){
+  _saving=true;
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(()=>{
+    db.ref('fleetdata').set({
+      vehicles: vehicles,
+      components: components,
+      ots: ots,
+      updated: Date.now()
+    })
+    .then(()=>{ setTimeout(()=>{ _saving=false; },1000); })
+    .catch(e=>{ console.warn('Firebase write error:',e); _saving=false; });
+  },300);
+}
+
+// Cargar desde Firebase al inicio - SIN listener en tiempo real
+// (evita race conditions; la sincronizacion ocurre al recargar la pagina)
+function loadData(){
+  showLoader(true);
+  db.ref('fleetdata').once('value')
+    .then(snap=>{
+      const data=snap.val();
+      if(data){
+        if(Array.isArray(data.vehicles)  && data.vehicles.length)   vehicles  =data.vehicles;
+        if(Array.isArray(data.components)&& data.components.length) components=data.components;
+        if(Array.isArray(data.ots))                                  ots       =data.ots;
+      }
+      showLoader(false);
+      // Inicializar fecha y tipo de OT
+      const fechaEl=document.getElementById('ot-fecha');
+      if(fechaEl) fechaEl.value=new Date().toISOString().split('T')[0];
+      toggleTipo();
+      renderAll();
+    })
+    .catch(e=>{
+      console.warn('Firebase read error - usando datos locales:',e);
+      showLoader(false);
+      const fechaEl=document.getElementById('ot-fecha');
+      if(fechaEl) fechaEl.value=new Date().toISOString().split('T')[0];
+      toggleTipo();
+      renderAll();
+    });
+}
+
+function clearAllData(){
+  if(!confirm('¿Borrar TODOS los datos en la nube? Esta accion no se puede deshacer.'))return;
+  vehicles=[];components=DEFAULT_COMPONENTS.map(c=>({...c}));ots=[];
+  db.ref('fleetdata').set({vehicles,components,ots,updated:Date.now()}).then(()=>{
+    renderAll();
+  });
+}
+
+function showLoader(show){
+  let el=document.getElementById('fb-loader');
+  if(!el){
+    el=document.createElement('div');
+    el.id='fb-loader';
+    el.style.cssText='position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#a3c9ff,#46e08e,#a3c9ff);background-size:200% 100%;animation:fb-load .8s linear infinite;z-index:9999;display:none';
+    document.body.prepend(el);
+    const style=document.createElement('style');
+    style.textContent='@keyframes fb-load{0%{background-position:200% 0}100%{background-position:-200% 0}}';
+    document.head.appendChild(style);
+  }
+  el.style.display=show?'block':'none';
+}
+
+// ==========================================
+// DATOS
+// ==========================================
+const DEFAULT_COMPONENTS=[
+  {name:'Frenos',km_vida:30000,umbral:1500},
+  {name:'Amortiguadores',km_vida:50000,umbral:2000},
+  {name:'Bateria',km_vida:60000,umbral:3000},
+  {name:'Correa distribucion',km_vida:80000,umbral:4000},
+  {name:'Bomba de agua',km_vida:80000,umbral:4000},
+  {name:'Filtro de aceite',km_vida:10000,umbral:500},
+  {name:'Filtro de aire',km_vida:20000,umbral:1000},
+  {name:'Bujias',km_vida:40000,umbral:2000}
+];
+let vehicles=[],components=DEFAULT_COMPONENTS.map(c=>({...c})),ots=[];
+// loadData() llamado al final del script despues de definir todas las funciones
+
+// ==========================================
+// UTILIDADES
+// ==========================================
+const fmtKm=n=>n!=null?n.toLocaleString('es-AR')+' km':'-';
+const fmtMoney=n=>n?'$'+Number(n).toLocaleString('es-AR'):'-';
+function getComp(s){return components.find(c=>c.name===s);}
+function getVehicle(id){return vehicles.find(v=>v.id===id);}
+function getLastOT(vid,sistema){return[...ots].filter(o=>o.vid===vid&&o.sistema===sistema&&!o.anulada).sort((a,b)=>b.km-a.km)[0]||null;}
+
+function calcStatus(vehicle,sistema){
+  const c=getComp(sistema),last=getLastOT(vehicle.id,sistema);
+  if(!c||!last)return{status:'sin-dato',km_proximo:null,vida_real:null,km_restantes:null};
+  const vida_real=vehicle.km-last.km,km_proximo=last.km+c.km_vida,km_restantes=km_proximo-vehicle.km;
+  return{status:km_restantes<=0?'vencido':km_restantes<=c.umbral?'proximo':'ok',km_proximo,vida_real,km_restantes,lastOT:last};
+}
+function getVehicleAlerts(v){return components.map(c=>({sistema:c.name,...calcStatus(v,c.name)})).filter(s=>s.status==='vencido'||s.status==='proximo');}
+function getAvgVidaUtil(sistema){
+  const cOTs=ots.filter(o=>o.sistema===sistema&&!o.anulada);
+  let sumas=[],seen={};
+  cOTs.forEach(o=>{if(!seen[o.vid])seen[o.vid]=[];seen[o.vid].push(o.km);});
+  Object.values(seen).forEach(kms=>{kms.sort((a,b)=>a-b);for(let i=1;i<kms.length;i++)sumas.push(kms[i]-kms[i-1]);});
+  return sumas.length?Math.round(sumas.reduce((a,b)=>a+b,0)/sumas.length):null;
+}
+
+// ==========================================
+// KPIs
+// ==========================================
+function calcDisponibilidad(vid){
+  const v=vehicles.find(x=>x.id===vid);if(!v)return null;
+  const vOTs=ots.filter(o=>o.vid===vid&&!o.anulada).sort((a,b)=>a.km-b.km);
+  if(!vOTs.length)return v.estado==='Activo'?100:0;
+  const totalKm=v.km-(vOTs[0]?.km||0);
+  if(totalKm<=0)return v.estado==='Activo'?100:0;
+  const kmNoDisp=vOTs.filter(o=>o.tipo==='Correctivo').length*500;
+  return Math.round(Math.max(0,Math.min(100,((totalKm-kmNoDisp)/totalKm)*100))*10)/10;
+}
+function calcDisponibilidadFlota(){
+  if(!vehicles.length)return 0;
+  return Math.round((vehicles.filter(v=>v.estado==='Activo').length/vehicles.length)*1000)/10;
+}
+function calcRatioPC(){
+  const prev=ots.filter(o=>o.tipo==='Preventivo'&&!o.anulada).length;
+  const corr=ots.filter(o=>o.tipo==='Correctivo'&&!o.anulada).length;
+  return{prev,corr,total:prev+corr};
+}
+function calcRatioPCVehicle(vid){
+  const prev=ots.filter(o=>o.vid===vid&&o.tipo==='Preventivo'&&!o.anulada).length;
+  const corr=ots.filter(o=>o.vid===vid&&o.tipo==='Correctivo'&&!o.anulada).length;
+  return{prev,corr,total:prev+corr};
+}
+function calcMTBF(vid){
+  const v=vehicles.find(x=>x.id===vid);if(!v)return null;
+  const vOTs=ots.filter(o=>o.vid===vid&&!o.anulada).sort((a,b)=>a.km-b.km);
+  const corr=ots.filter(o=>o.vid===vid&&o.tipo==='Correctivo'&&!o.anulada);
+  if(!corr.length||!vOTs.length)return null;
+  const kmT=v.km-vOTs[0].km;
+  return kmT<=0?null:Math.round(kmT/corr.length);
+}
+function calcMTBFFlota(){
+  const corr=ots.filter(o=>o.tipo==='Correctivo'&&!o.anulada).length;
+  if(!corr||!vehicles.length)return null;
+  const kmT=vehicles.reduce((acc,v)=>{const p=ots.filter(o=>o.vid===v.id&&!o.anulada).sort((a,b)=>a.km-b.km)[0];return acc+(p?v.km-p.km:0);},0);
+  return kmT<=0?null:Math.round(kmT/corr);
+}
+
+function renderKPIs(){
+  const disp=calcDisponibilidadFlota(),ratio=calcRatioPC(),mtbf=calcMTBFFlota();
+  const pct=ratio.total?Math.round(ratio.prev/ratio.total*100):0;
+  const cC=ots.filter(o=>o.tipo==='Correctivo'&&!o.anulada).reduce((a,o)=>a+(parseFloat(o.costo)||0),0);
+  const cP=ots.filter(o=>o.tipo==='Preventivo'&&!o.anulada).reduce((a,o)=>a+(parseFloat(o.costo)||0),0);
+
+  // --- GAUGE ---
+  const activos=vehicles.filter(v=>v.estado==='Activo').length;
+  const enMant =vehicles.filter(v=>v.estado==='En mantenimiento').length;
+  const fuera  =vehicles.filter(v=>v.estado==='Fuera de servicio').length;
+  const gColor =disp>=90?'#46e08e':disp>=75?'#ffba3f':'#ffb4ab';
+  const gLabel =disp>=90?'OPTIMO':disp>=75?'NORMAL':'CRITICAL';
+  const gBadgeClass=disp>=90?'ok':disp>=75?'warn':'';
+  if(document.getElementById('disp-act')){
+    document.getElementById('disp-act').textContent=activos;
+    document.getElementById('disp-mnt').textContent=enMant;
+    document.getElementById('disp-fua').textContent=fuera;
+    const gv=document.getElementById('gauge-val');
+    if(gv){gv.textContent=disp+'%';gv.setAttribute('fill',gColor);}
+    const db=document.getElementById('disp-badge');
+    if(db){db.textContent=gLabel;db.className='kpi-badge '+gBadgeClass;}
+    // Arc
+    const pctG=disp/100,cx=100,cy=100,r=80;
+    const sa=Math.PI,ea=Math.PI-pctG*Math.PI;
+    const x1=cx+r*Math.cos(sa),y1=cy+r*Math.sin(sa);
+    const x2=cx+r*Math.cos(ea),y2=cy+r*Math.sin(ea);
+    const la=pctG>0.5?1:0;
+    const arc=document.getElementById('gauge-arc');
+    if(arc){arc.setAttribute('d',pctG===0?`M${x1} ${y1} A${r} ${r} 0 0 1 ${x1+.001} ${y1}`:`M${x1} ${y1} A${r} ${r} 0 ${la} 1 ${x2} ${y2}`);arc.setAttribute('stroke',gColor);}
+    const needle=document.getElementById('gauge-needle');
+    if(needle)needle.style.transform=`rotate(${-180+pctG*180}deg)`;
+  }
+
+  // --- BARS P/C ---
+  const cPct=100-pct;
+  if(document.getElementById('stat-prev')){
+    document.getElementById('stat-prev').textContent=ratio.prev;
+    document.getElementById('stat-corr').textContent=ratio.corr;
+    document.getElementById('costo-prev').textContent='$'+Math.round(cP/1000)+'k';
+    document.getElementById('costo-corr').textContent='$'+Math.round(cC/1000)+'k';
+    document.getElementById('prev-pct').textContent=pct+'%';
+    document.getElementById('corr-pct').textContent=cPct+'%';
+    const pb=document.getElementById('pc-badge');
+    if(pb){pb.textContent=pct+'% prev.';pb.className='kpi-badge '+(pct>=70?'ok':pct>=50?'warn':'');}
+    setTimeout(()=>{
+      const bp=document.getElementById('bar-prev');if(bp)bp.style.height=(pct*.82)+'%';
+      const bc=document.getElementById('bar-corr');if(bc)bc.style.height=(cPct*.82)+'%';
+    },150);
+    const dot=document.getElementById('pc-dot'),st=document.getElementById('pc-status');
+    if(dot&&st){
+      if(!ratio.total){dot.style.background='#555e7a';st.style.color='#555e7a';st.textContent='Sin datos';}
+      else if(pct>=70){dot.style.background='#46e08e';dot.style.boxShadow='0 0 5px rgba(70,224,142,.6)';st.style.color='#46e08e';st.textContent='Gestion proactiva';}
+      else if(pct>=50){dot.style.background='#ffba3f';dot.style.boxShadow='0 0 5px rgba(255,186,63,.6)';st.style.color='#ffba3f';st.textContent='Mejorable';}
+      else{dot.style.background='#ffb4ab';dot.style.boxShadow='0 0 5px rgba(255,180,171,.6)';st.style.color='#ffb4ab';st.textContent='Reactivo';}
+    }
+  }
+
+  // --- MTBF ---
+  const corrCount=ots.filter(o=>o.tipo==='Correctivo'&&!o.anulada).length;
+  const kmTot=vehicles.reduce((acc,v)=>{const p=ots.filter(o=>o.vid===v.id&&!o.anulada).sort((a,b)=>a.km-b.km)[0];return acc+(p?v.km-p.km:0);},0);
+  if(document.getElementById('mtbf-val')){
+    document.getElementById('mtbf-corr').textContent=corrCount;
+    document.getElementById('mtbf-km').textContent=kmTot>0?Math.round(kmTot/1000)+'k km':'--';
+    if(!mtbf){
+      document.getElementById('mtbf-val').textContent='-- km';
+      document.getElementById('mtbf-val').style.color='#555e7a';
+      document.getElementById('mtbf-dot').style.background='#32343e';
+      document.getElementById('mtbf-st').textContent='--';
+      document.getElementById('mtbf-st').style.color='#555e7a';
+      document.getElementById('mtbf-bars').innerHTML='<div style="text-align:center;padding:16px 0;color:#555e7a"><span style="font-size:20px;display:block;margin-bottom:6px;opacity:.3">?</span><span style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;font-family:monospace">Insuficiente informacion</span></div>';
+    } else {
+      const mc=mtbf>=30000?'#46e08e':mtbf>=15000?'#ffba3f':'#ffb4ab';
+      const ms=mtbf>=30000?'Alta confiabilidad':mtbf>=15000?'Confiab. media':'Alta frecuencia fallos';
+      document.getElementById('mtbf-val').textContent=mtbf.toLocaleString('es-AR')+' km';
+      document.getElementById('mtbf-val').style.color=mc;
+      const md=document.getElementById('mtbf-dot');
+      md.style.background=mc;md.style.boxShadow=`0 0 5px ${mc}80`;
+      document.getElementById('mtbf-st').textContent=ms;
+      document.getElementById('mtbf-st').style.color=mc;
+      // Per-vehicle bars
+      const vd=vehicles.map(v=>({v,m:calcMTBF(v.id)}));
+      const mxM=Math.max(...vd.map(x=>x.m||0),1);
+      document.getElementById('mtbf-bars').innerHTML=vd.map(x=>{
+        const p=x.m?Math.round(x.m/mxM*100):0;
+        const col=x.m?(x.m>=30000?'#46e08e':x.m>=15000?'#ffba3f':'#ffb4ab'):'#32343e';
+        return`<div class="mtbf-row"><span class="mtbf-vid">${x.v.id}</span><div class="mtbf-track"><div class="mtbf-fill" data-w="${p}" style="width:0%;background:${col}"></div></div><span class="mtbf-km" style="color:${col}">${x.m?x.m.toLocaleString('es-AR')+' km':'--'}</span></div>`;
+      }).join('');
+      setTimeout(()=>{document.querySelectorAll('.mtbf-fill[data-w]').forEach(el=>el.style.width=el.dataset.w+'%');},100);
+    }
+    // Per-vehicle KPI table
+    document.getElementById('kpi-vehicle-tbody').innerHTML=vehicles.map(v=>{
+      const d=calcDisponibilidad(v.id),p=calcRatioPCVehicle(v.id),m=calcMTBF(v.id);
+      const pV=p.total?Math.round(p.prev/p.total*100):null;
+      const dc2=d>=90?'var(--green)':d>=70?'var(--amber)':'var(--red)';
+      const pc2=pV===null?'var(--text3)':pV>=70?'var(--green)':pV>=50?'var(--amber)':'var(--red)';
+      const mc2=!m?'var(--text3)':m>=30000?'var(--green)':m>=15000?'var(--amber)':'var(--red)';
+      const cV=ots.filter(o=>o.vid===v.id&&o.tipo==='Correctivo'&&!o.anulada).reduce((a,o)=>a+(parseFloat(o.costo)||0),0);
+      return`<tr>
+        <td><span style="font-family:var(--mono);font-size:11px;color:var(--text3)">${v.id}</span><br>${v.name}</td>
+        <td><div style="display:flex;align-items:center;gap:7px"><div class="progress" style="width:56px"><div class="progress-fill" style="width:${d??0}%;background:${dc2}"></div></div><span style="font-family:var(--mono);font-size:12px;color:${dc2}">${d??'-'}%</span></div></td>
+        <td><span style="font-family:var(--mono);color:var(--green)">${p.prev}P</span> / <span style="font-family:var(--mono);color:var(--red)">${p.corr}C</span></td>
+        <td><span style="font-family:var(--mono);color:${pc2}">${pV!==null?pV+'%':'-'}</span></td>
+        <td><span style="font-family:var(--mono);color:${mc2}">${m?m.toLocaleString('es-AR')+' km':'Sin correctivos'}</span></td>
+        <td><span class="badge ${p.corr?'badge-warn':'badge-ok'}">${p.corr}</span></td>
+        <td style="font-family:var(--mono)">${cV?'$'+cV.toLocaleString('es-AR'):'-'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // --- VIDA UTIL GRID ---
+  const vg=document.getElementById('vida-grid');
+  if(vg){
+    vg.innerHTML=components.slice(0,8).map(comp=>{
+      const avg=getAvgVidaUtil(comp.name);
+      const p=avg?Math.min(100,Math.round(avg/comp.km_vida*100)):0;
+      const col=p>=85?'#46e08e':p>=60?'#ffba3f':'#ffb4ab';
+      return`<div class="vida-item">
+        <div class="vida-hdr"><span class="vida-name">${comp.name}</span><span class="vida-km">${(comp.km_vida/1000).toFixed(0)}k km</span></div>
+        <div class="vida-bar"><div class="vida-theo"></div><div class="vida-real" data-vw="${p}" style="width:0%;background:${avg?col:'#32343e'}"></div></div>
+        <div class="vida-sub">${avg?avg.toLocaleString('es-AR')+' km / '+p+'%':'0 km / 0%'}</div>
+      </div>`;
+    }).join('');
+    setTimeout(()=>{document.querySelectorAll('.vida-real[data-vw]').forEach(el=>el.style.width=el.dataset.vw+'%');},350);
+  }
+}
+// ==========================================
+// RENDERS
+// ==========================================
+function renderDashboard(){
+  renderKPIs();
+  const allAlerts=[];
+  vehicles.forEach(v=>getVehicleAlerts(v).forEach(a=>allAlerts.push({...a,vehicle:v})));
+  allAlerts.sort((a,b)=>(a.km_restantes??-9999)-(b.km_restantes??-9999));
+  const totalVenc=allAlerts.filter(a=>a.status==='vencido').length;
+  const otsA=ots.filter(o=>!o.anulada);
+  const totalCosto=otsA.reduce((a,o)=>a+(parseFloat(o.costo)||0),0);
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric-card"><div class="metric-label">Vehiculos activos</div><div class="metric-val green">${vehicles.filter(v=>v.estado==='Activo').length}</div></div>
+    <div class="metric-card"><div class="metric-label">OTs registradas</div><div class="metric-val">${otsA.length}</div></div>
+    <div class="metric-card"><div class="metric-label">Sistemas vencidos</div><div class="metric-val ${totalVenc?'red':''}">${totalVenc}</div></div>
+    <div class="metric-card"><div class="metric-label">Inversion total</div><div class="metric-val amber">$${Math.round(totalCosto/1000)}k</div></div>`;
+  document.getElementById('alert-count-badge').textContent=allAlerts.length;
+  updateAlertBadges(allAlerts.length);
+  document.getElementById('alerts-list').innerHTML=allAlerts.length
+    ?allAlerts.slice(0,6).map(a=>`<div class="alert-item ${a.status==='vencido'?'danger':'warn'}"><div class="alert-dot ${a.status==='vencido'?'danger':'warn'}"></div><div style="flex:1"><div class="alert-title">${a.vehicle.name} - ${a.sistema}</div><div class="alert-sub">${a.status==='vencido'?'Vencido por '+fmtKm(Math.abs(a.km_restantes)):'Proximo: '+fmtKm(a.km_restantes)+' restantes'}</div></div><span class="badge ${a.status==='vencido'?'badge-danger':'badge-warn'}">${a.status==='vencido'?'VENCIDO':'PROXIMO'}</span></div>`).join('')
+    :'<div class="empty">Sin alertas - flota al dia</div>';
+  const nexts=[];
+  vehicles.forEach(v=>components.forEach(c=>{const s=calcStatus(v,c.name);if(s.km_proximo)nexts.push({v,c:c.name,km_proximo:s.km_proximo,km_restantes:s.km_restantes,status:s.status,vida:c.km_vida});}));
+  nexts.sort((a,b)=>(a.km_restantes??99999)-(b.km_restantes??99999));
+  document.getElementById('next-maint').innerHTML=nexts.slice(0,5).map(n=>{
+    const pct=Math.max(0,Math.min(100,100-((n.km_restantes??0)/n.vida*100)));
+    return`<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:13px">${n.v.name}<span style="color:var(--text3)"> - ${n.c}</span></span><span class="badge ${n.status==='vencido'?'badge-danger':n.status==='proximo'?'badge-warn':'badge-ok'} mono">${fmtKm(n.km_restantes??0)}</span></div><div class="progress"><div class="progress-fill" style="width:${Math.round(pct)}%;background:${n.status==='vencido'?'var(--red)':n.status==='proximo'?'var(--amber)':'var(--green)'}"></div></div></div>`;
+  }).join('');
+  document.getElementById('dash-vehicle-tbody').innerHTML=vehicles.map(v=>{
+    const al=getVehicleAlerts(v),vc=al.filter(a=>a.status==='vencido').length,pr=al.filter(a=>a.status==='proximo').length;
+    const lbl=vc>0?'Requiere atencion':pr>0?'Revisar pronto':'OK',cls=vc>0?'badge-danger':pr>0?'badge-warn':'badge-ok';
+    return`<tr><td class="mono">${v.id}</td><td>${v.name}</td><td class="mono">${fmtKm(v.km)}</td><td>${vc?`<span class="badge badge-danger">${vc} vencido${vc>1?'s':''}</span> `:''}${pr?`<span class="badge badge-warn">${pr} proximo${pr>1?'s':''}</span>`:''} ${(!vc&&!pr)?'<span class="badge badge-ok">OK</span>':''}</td><td><span class="badge ${cls}">${lbl}</span></td></tr>`;
+  }).join('');
+  document.getElementById('vida-util-tbody').innerHTML=components.map(c=>{
+    const avg=getAvgVidaUtil(c.name),cOTs=ots.filter(o=>o.sistema===c.name&&!o.anulada).length;
+    const pct=avg?Math.min(100,Math.round(avg/c.km_vida*100)):0;
+    return`<tr><td>${c.name}</td><td class="mono">${fmtKm(c.km_vida)}</td><td class="mono">${avg?fmtKm(avg):'-'}</td><td><span class="badge badge-gray">${cOTs}</span></td><td style="width:140px">${avg?`<div style="display:flex;align-items:center;gap:8px"><div class="progress" style="flex:1"><div class="progress-fill" style="width:${pct}%;background:${pct>=85?'var(--green)':pct>=60?'var(--amber)':'var(--red)'}"></div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3)">${pct}%</span></div>`:'-'}</td></tr>`;
+  }).join('');
+}
+
+function renderFleet(){
+  document.getElementById('fleet-tbody').innerHTML=vehicles.map(v=>{
+    const al=getVehicleAlerts(v),vc=al.filter(a=>a.status==='vencido').length,pr=al.filter(a=>a.status==='proximo').length;
+    const cls=v.estado==='Activo'?'badge-ok':v.estado==='En mantenimiento'?'badge-warn':'badge-danger';
+    return`<tr><td class="mono">${v.id}</td><td>${v.name}</td><td class="mono">${fmtKm(v.km)}</td><td><span class="badge ${cls}">${v.estado}</span></td><td>${vc?`<span class="badge badge-danger">${vc}V</span> `:''}${pr?`<span class="badge badge-warn">${pr}P</span>`:''} ${(!vc&&!pr)?'<span class="badge badge-ok">OK</span>':''}</td><td><button class="btn btn-danger btn-sm" onclick="removeVehicle('${v.id}')">Eliminar</button></td></tr>`;
+  }).join('')||'<tr><td colspan="6" class="empty">Sin vehiculos registrados</td></tr>';
+}
+
+function renderOT(){
+  const vs=document.getElementById('ot-vehicle'),pv=vs.value;
+  vs.innerHTML=vehicles.map(v=>`<option value="${v.id}">${v.id} - ${v.name}</option>`).join('');
+  if(pv)vs.value=pv;
+  const co=components.map(c=>`<option>${c.name}</option>`).join('');
+  const ss=document.getElementById('ot-sistema'),ps=ss.value;ss.innerHTML=co;if(ps)ss.value=ps;
+  const ss2=document.getElementById('ot-sistema-sel'),ps2=ss2.value;ss2.innerHTML=co;if(ps2)ss2.value=ps2;
+  toggleTipo();
+  const rev=[...ots.map((o,i)=>({...o,_idx:i}))].reverse();
+  const ei=document.getElementById('ot-edit-index').textContent;
+  document.getElementById('ot-tbody').innerHTML=rev.map(o=>{
+    const c=getComp(o.sistema),prox=o.tipo==='Preventivo'&&!o.anulada?o.km+(c?c.km_vida:30000):null;
+    const editing=ei!==''&&parseInt(ei)===o._idx;
+    const rs=o.anulada?'opacity:.45;':editing?'background:rgba(245,166,35,.07);outline:1px solid var(--amber-border);':'';
+    return`<tr style="cursor:pointer;${rs}" onclick="${o.anulada?'':'editOT('+o._idx+')'}">
+      <td class="mono" style="${editing?'color:var(--amber)':''}">${o.fecha}</td>
+      <td class="mono">${o.vid}</td>
+      <td>${o.anulada?'<span class="badge" style="background:var(--bg4);color:var(--text3);border:1px solid var(--border)">ANULADA</span>':`<span class="badge ${o.tipo==='Preventivo'?'badge-ok':'badge-warn'}">${o.tipo.toUpperCase()}</span>`}</td>
+      <td style="${o.anulada?'text-decoration:line-through;color:var(--text3)':''}">${o.sistema}</td>
+      <td class="mono">${fmtKm(o.km)}</td>
+      <td class="mono">${prox?fmtKm(prox):'-'}</td>
+      <td>${fmtMoney(o.costo)}</td>
+      <td style="color:var(--text3)">${o.tecnico||'-'}</td>
+      <td style="display:flex;gap:6px;align-items:center">${o.anulada
+        ?`<button class="btn btn-sm" onclick="event.stopPropagation();reactivarOT(${o._idx})" style="padding:3px 10px;font-size:11px;color:var(--green);border-color:var(--green-border)">&larr; Reactivar</button>`
+        :`<button class="btn btn-sm" onclick="event.stopPropagation();editOT(${o._idx})" style="padding:3px 10px;font-size:11px;color:var(--accent);border-color:var(--blue-border)">(editar) Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();anularOT(${o._idx})" style="padding:3px 10px;font-size:11px">x Anular</button>`}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="9" class="empty">Sin ordenes registradas</td></tr>';
+}
+
+function renderComponents(){
+  document.getElementById('comp-tbody').innerHTML=components.map((c,i)=>{
+    const cOTs=ots.filter(o=>o.sistema===c.name&&!o.anulada).length,avg=getAvgVidaUtil(c.name);
+    return`<tr><td>${c.name}</td><td><input type="number" value="${c.km_vida}" style="width:110px" onchange="components[${i}].km_vida=parseInt(this.value)||c.km_vida;renderAll();saveData()"></td><td><input type="number" value="${c.umbral}" style="width:90px" onchange="components[${i}].umbral=parseInt(this.value)||c.umbral;renderAll();saveData()"></td><td class="mono">${cOTs}</td><td class="mono">${avg?fmtKm(avg):'-'}</td><td><button class="btn btn-danger btn-sm" onclick="removeComponent(${i})">Quitar</button></td></tr>`;
+  }).join('');
+}
+
+function renderESP32(){
+  const s=document.getElementById('esp-vehicle'),p=s.value;
+  s.innerHTML=vehicles.map(v=>`<option value="${v.id}">${v.id} - ${v.name}</option>`).join('');
+  if(p)s.value=p;
+}
+
+function renderAll(){
+  renderDashboard();
+  renderFleet();
+  renderOT();
+  renderComponents();
+  renderESP32();
+}
+
+// ==========================================
+// ACCIONES - VEHÍCULOS
+// ==========================================
+function addVehicle(){
+  const id=document.getElementById('v-id').value.trim().toUpperCase();
+  const name=document.getElementById('v-name').value.trim();
+  const km=parseInt(document.getElementById('v-km').value)||0;
+  const estado=document.getElementById('v-estado').value;
+  if(!id||!name){alert('ID y nombre son obligatorios');return;}
+  if(vehicles.find(v=>v.id===id)){alert('Ya existe un vehiculo con ese ID');return;}
+  vehicles.push({id,name,km,estado});
+  ['v-id','v-name','v-km'].forEach(x=>document.getElementById(x).value='');
+  saveData();  // activa _saving=true ANTES de renderAll
+  renderAll(); // renderiza con el array ya actualizado
+}
+function removeVehicle(vid){
+  if(!confirm('¿Eliminar vehiculo? Esta accion no se puede deshacer.'))return;
+  vehicles=vehicles.filter(v=>v.id!==vid);
+  saveData();renderAll();
+}
+
+// ==========================================
+// ACCIONES - OTs
+// ==========================================
+function getSistema(){
+  if(document.getElementById('ot-tipo').value==='Preventivo')return document.getElementById('ot-sistema').value;
+  return document.getElementById('sistema-corr-lista').style.display!=='none'
+    ?document.getElementById('ot-sistema-sel').value
+    :document.getElementById('ot-sistema-texto').value.trim();
+}
+function toggleSistemaMode(){
+  const libre=document.getElementById('sistema-corr-libre'),lista=document.getElementById('sistema-corr-lista'),btn=document.getElementById('btn-usar-lista');
+  if(lista.style.display!=='none'){lista.style.display='none';libre.style.display='block';btn.textContent='Usar lista v';}
+  else{lista.style.display='block';libre.style.display='none';btn.textContent='Texto libre (editar)';const s=document.getElementById('ot-sistema-sel');if(!s.options.length)s.innerHTML=components.map(c=>`<option>${c.name}</option>`).join('');}
+}
+function toggleTipo(){
+  const tipoEl=document.getElementById('ot-tipo');
+  if(!tipoEl)return;
+  const tipo=tipoEl.value;
+  const prevEl=document.getElementById('field-sistema-prev');
+  const corrEl=document.getElementById('field-sistema-corr');
+  const proxEl=document.getElementById('field-proximo');
+  if(!prevEl||!corrEl||!proxEl)return;
+  prevEl.style.display=tipo==='Correctivo'?'none':'block';
+  corrEl.style.display=tipo==='Correctivo'?'block':'none';
+  proxEl.style.visibility=tipo==='Correctivo'?'hidden':'visible';
+  if(tipo==='Correctivo'){
+    const proxInput=document.getElementById('ot-proximo');
+    if(proxInput)proxInput.value='';
+    const libreEl=document.getElementById('sistema-corr-libre');
+    const listaEl=document.getElementById('sistema-corr-lista');
+    const btnEl=document.getElementById('btn-usar-lista');
+    if(libreEl)libreEl.style.display='block';
+    if(listaEl)listaEl.style.display='none';
+    if(btnEl)btnEl.textContent='Usar lista v';
+  } else {
+    calcProximo();
+  }
+}
+function submitOT(){
+  const idxEl=document.getElementById('ot-edit-index'),isEdit=idxEl.textContent!=='';
+  const vid=document.getElementById('ot-vehicle').value,tipo=document.getElementById('ot-tipo').value,sistema=getSistema();
+  const km=parseInt(document.getElementById('ot-km').value)||0,fecha=document.getElementById('ot-fecha').value||new Date().toISOString().split('T')[0];
+  const costo=parseFloat(document.getElementById('ot-costo').value)||0,desc=document.getElementById('ot-desc').value,tecnico=document.getElementById('ot-tecnico').value.trim();
+  if(!vid||!km){alert('Vehiculo y km son obligatorios');return;}
+  if(!sistema){alert('Ingresa el sistema o componente afectado');return;}
+  const vinc=tipo==='Preventivo'||document.getElementById('sistema-corr-lista').style.display!=='none';
+  const otData={fecha,vid,tipo,sistema,km,costo,desc,tecnico,sistemaVinculado:vinc};
+  if(isEdit)ots[parseInt(idxEl.textContent)]=otData;else ots.push(otData);
+  clearOTForm();saveData();renderAll();
+}
+function editOT(idx){
+  const o=ots[idx];if(!o)return;
+  document.getElementById('tab-ot').querySelector('.card').scrollIntoView({behavior:'smooth',block:'start'});
+  document.getElementById('ot-vehicle').value=o.vid;
+  document.getElementById('ot-tipo').value=o.tipo;toggleTipo();
+  if(o.tipo==='Preventivo'){document.getElementById('ot-sistema').value=o.sistema;}
+  else{
+    const enLista=components.find(c=>c.name===o.sistema);
+    if(enLista&&o.sistemaVinculado){document.getElementById('sistema-corr-libre').style.display='none';document.getElementById('sistema-corr-lista').style.display='block';document.getElementById('btn-usar-lista').textContent='Texto libre (editar)';const s=document.getElementById('ot-sistema-sel');s.innerHTML=components.map(c=>`<option>${c.name}</option>`).join('');s.value=o.sistema;}
+    else{document.getElementById('sistema-corr-libre').style.display='block';document.getElementById('sistema-corr-lista').style.display='none';document.getElementById('btn-usar-lista').textContent='Usar lista v';document.getElementById('ot-sistema-texto').value=o.sistema;}
+  }
+  document.getElementById('ot-fecha').value=o.fecha;document.getElementById('ot-km').value=o.km;document.getElementById('ot-costo').value=o.costo||'';document.getElementById('ot-desc').value=o.desc||'';document.getElementById('ot-tecnico').value=o.tecnico||'';
+  document.getElementById('ot-edit-index').textContent=idx;document.getElementById('ot-form-title').textContent='Editar orden de trabajo';document.getElementById('ot-submit-btn').textContent='&#10004; Guardar cambios';document.getElementById('ot-cancel-btn').style.display='inline-block';document.getElementById('ot-edit-badge').style.display='inline-block';
+  calcProximo();renderOT();
+}
+function cancelEditOT(){clearOTForm();renderOT();}
+function clearOTForm(){
+  document.getElementById('ot-edit-index').textContent='';document.getElementById('ot-form-title').textContent='Nueva orden de trabajo';document.getElementById('ot-submit-btn').textContent='+ Registrar OT';document.getElementById('ot-cancel-btn').style.display='none';document.getElementById('ot-edit-badge').style.display='none';
+  ['ot-km','ot-costo','ot-desc','ot-tecnico','ot-proximo','ot-sistema-texto'].forEach(x=>{const el=document.getElementById(x);if(el)el.value='';});
+  document.getElementById('ot-fecha').value=new Date().toISOString().split('T')[0];document.getElementById('ot-tipo').value='Preventivo';document.getElementById('sistema-corr-libre').style.display='block';document.getElementById('sistema-corr-lista').style.display='none';document.getElementById('btn-usar-lista').textContent='Usar lista v';toggleTipo();
+}
+function anularOT(idx){if(!confirm('¿Anular esta OT?\nQuedara en el historial pero no afectara los calculos.'))return;ots[idx].anulada=true;saveData();renderAll();}
+function reactivarOT(idx){if(!confirm('¿Reactivar esta OT?'))return;ots[idx].anulada=false;saveData();renderAll();}
+function autoKm(){const v=getVehicle(document.getElementById('ot-vehicle').value);if(v)document.getElementById('ot-km').value=v.km;calcProximo();}
+function calcProximo(){const s=document.getElementById('ot-sistema').value,km=parseInt(document.getElementById('ot-km').value)||0,c=getComp(s);document.getElementById('ot-proximo').value=km&&c?km+c.km_vida:'';}
+
+// ==========================================
+// ACCIONES - COMPONENTES
+// ==========================================
+function addComponent(){
+  const name=document.getElementById('c-name').value.trim(),km=parseInt(document.getElementById('c-km').value)||10000,umbral=parseInt(document.getElementById('c-umbral').value)||500;
+  if(!name){alert('Nombre obligatorio');return;}if(components.find(c=>c.name===name)){alert('Ya existe ese sistema');return;}
+  components.push({name,km_vida:km,umbral});['c-name','c-km','c-umbral'].forEach(x=>document.getElementById(x).value='');saveData();renderAll();
+}
+function removeComponent(i){if(confirm('¿Eliminar componente?')){components.splice(i,1);saveData();renderAll();}}
+
+// ==========================================
+// ESP32
+// ==========================================
+function sendESP32(){
+  const vid=document.getElementById('esp-vehicle').value,km=parseInt(document.getElementById('esp-km').value);
+  const lat=parseFloat(document.getElementById('esp-lat').value)||(-32.8894),lng=parseFloat(document.getElementById('esp-lng').value)||(-68.8458);
+  if(!vid||!km){alert('Seleccione vehiculo y km');return;}
+  const v=getVehicle(vid);if(!v)return;
+  const prev=v.km,payload={timestamp:new Date().toISOString(),vehicle_id:vid,lat:parseFloat(lat.toFixed(6)),lng:parseFloat(lng.toFixed(6)),km_acumulado:km,delta_km:Math.max(0,km-prev)};
+  document.getElementById('esp-payload').textContent=JSON.stringify(payload,null,2);
+  if(km>v.km){
+    v.km=km;
+    renderAll(); // actualizar UI de inmediato
+    // Actualizar km directo en Firebase
+    if(window._fbIgnore)window._fbIgnore();
+    db.ref('fleetdata/vehicles').set(vehicles).catch(e=>console.warn(e));
+    saveData();
+  }
+  const log=document.getElementById('esp-log'),first=log.querySelector('.empty');if(first)first.remove();
+  const e=document.createElement('div');e.className='log-entry';
+  e.innerHTML=`<span class="log-ts">${new Date().toLocaleTimeString('es-AR')}</span><span class="mono">${vid}</span> &rarr; <span class="log-km">${km.toLocaleString('es-AR')} km</span> (D+${Math.max(0,km-prev).toLocaleString('es-AR')} km) | ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  log.prepend(e);renderAll();
+}
+function autoSimulate(){
+  if(!vehicles.length){alert('Primero registre vehiculos');return;}
+  const v=vehicles[Math.floor(Math.random()*vehicles.length)],delta=Math.floor(Math.random()*900+100);
+  document.getElementById('esp-vehicle').value=v.id;document.getElementById('esp-km').value=v.km+delta;
+  document.getElementById('esp-lat').value=(-32.8894+(Math.random()-.5)*.1).toFixed(4);document.getElementById('esp-lng').value=(-68.8458+(Math.random()-.5)*.1).toFixed(4);
+  sendESP32();
+}
+
+// ==========================================
+// NAVEGACION
+// ==========================================
+let currentTab='dashboard';
+function showTab(name,sEl,bnId){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(sEl)sEl.classList.add('active');
+  const bn=document.getElementById(bnId||'bn-'+name);if(bn)bn.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+name+"'"))n.classList.add('active');});
+  currentTab=name;
+  const titles={dashboard:'Dashboard',vehiculos:'Vehiculos',ot:'Ordenes de trabajo',componentes:'Componentes',esp32:'Simulador ESP32'};
+  document.getElementById('page-title').textContent=titles[name]||name;
+  closeSidebar();
+  // Renderizar DESPUES de que el panel ya es visible (display:block)
+  setTimeout(()=>{
+    if(name==='dashboard')   renderDashboard();
+    else if(name==='vehiculos')  renderFleet();
+    else if(name==='ot')         renderOT();
+    else if(name==='componentes')renderComponents();
+    else if(name==='esp32')      renderESP32();
+  },0);
+}
+function toggleSidebar(){
+  const sb=document.getElementById('sidebar'),hb=document.getElementById('hamburger'),ov=document.getElementById('sidebar-overlay');
+  const o=sb.classList.toggle('open');hb.classList.toggle('open',o);ov.classList.toggle('visible',o);
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('hamburger').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('visible');
+}
+function updateAlertBadges(count){
+  document.getElementById('nav-alert-count').textContent=count;
+  const b=document.getElementById('bn-alert-count');b.style.display=count>0?'block':'none';if(count>0)b.textContent=count;
+  const d=document.getElementById('topbar-alert-dot');if(d)d.style.display=count>0?'block':'none';
+}
+
+// ==========================================
+// RELOJ & INIT
+// ==========================================
+function tick(){
+  const now=new Date().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('clock-top').textContent=now;document.getElementById('clock-side').textContent=now;
+}
+setInterval(tick,1000);tick();
+// Init delegado a loadData() - Firebase llama renderAll() cuando los datos llegan
+loadData();
+</script>
+</body>
+</html>
